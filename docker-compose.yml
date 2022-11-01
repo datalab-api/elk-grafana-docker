@@ -1,32 +1,9 @@
-version: '3.7'
+version: '3'
 
 services:
-
-  # The 'setup' service runs a one-off script which initializes the
-  # 'logstash_internal' and 'kibana_system' users inside Elasticsearch with the
-  # values of the passwords defined in the '.env' file.
-  #
-  # This task is only performed during the *initial* startup of the stack. On all
-  # subsequent runs, the service simply returns immediately, without performing
-  # any modification to existing users.
-  setup:
-    build:
-      context: setup/
-      args:
-        ELASTIC_VERSION: ${ELASTIC_VERSION}
-    init: true
-    volumes:
-      - setup:/state:Z
-    environment:
-      ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-}
-      LOGSTASH_INTERNAL_PASSWORD: ${LOGSTASH_INTERNAL_PASSWORD:-}
-      KIBANA_SYSTEM_PASSWORD: ${KIBANA_SYSTEM_PASSWORD:-}
-    networks:
-      - elk
-    depends_on:
-      - elasticsearch
-
   elasticsearch:
+    container_name: elasticsearch
+    hostname: elasticsearch
     build:
       context: elasticsearch/
       args:
@@ -46,10 +23,14 @@ services:
       # Use single node discovery in order to disable production mode and avoid bootstrap checks.
       # see: https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
       discovery.type: single-node
+      http.cors.allow-headers: X-Requested-With,X-Auth-Token,Content-Type,Content-Length,Authorization
+
     networks:
       - elk
 
   logstash:
+    container_name: logstash
+    hostname: logstash
     build:
       context: logstash/
       args:
@@ -71,6 +52,8 @@ services:
       - elasticsearch
 
   kibana:
+    container_name: kibana
+    hostname: kibana
     build:
       context: kibana/
       args:
@@ -87,6 +70,22 @@ services:
       - elk
     depends_on:
       - elasticsearch
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    hostname: grafana
+    # environment: 
+    #   GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION: "true"
+    #   GF_AUTH_ANONYMOUS_ENABLED: "true"
+    #   GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+    #   GF_AUTH_DISABLE_SIGNOUT_MENU: "true"
+    #   GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    networks:
+      - elk
+    ports:
+      - 3000:3000
+    volumes:
+      - grafana:/etc/grafana/provisioning
 
 networks:
   elk:
@@ -95,3 +94,5 @@ networks:
 volumes:
   setup:
   elasticsearch:
+  grafana:
+  
